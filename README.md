@@ -44,12 +44,21 @@ npm run format
 
 ## Project structure
 
-- `app/`: App Router routes and layouts.
-- `components/`: Shared UI building blocks.
-- `src/engine/`: Palette and scale generation logic.
-- `src/lib/`: Client utilities and local storage helpers.
-- `src/store/`: Zustand state containers.
-- `public/`: Static assets.
+```
+.
+├── app/                 # App Router routes and layouts
+│   ├── dashboard/       # Palette dashboard
+│   ├── palettes/        # Palette editor routes
+│   ├── create/          # Redirects to dashboard
+│   ├── layout.tsx       # Root layout
+│   └── page.tsx         # Redirects to dashboard
+├── components/          # Shared UI building blocks
+├── public/              # Static assets
+└── src/
+    ├── engine/          # Palette and scale generation logic
+    ├── lib/             # Client utilities and local storage helpers
+    └── store/           # Zustand state containers
+```
 
 ## Notes
 
