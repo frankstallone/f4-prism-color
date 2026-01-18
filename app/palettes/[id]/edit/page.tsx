@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { buildPalette, colorToHex, optimizations } from '@/src/engine'
+import { buildScale, colorToHex, optimizations } from '@/src/engine'
 import type { PaletteSeed, Swatch } from '@/src/engine'
 import {
   loadPalettes,
@@ -56,21 +56,8 @@ import {
   upsertPalette,
   type PaletteRecord,
 } from '@/src/lib/palettes'
+import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
 import { parseColor } from '@react-stately/color'
-
-type ScaleDefinition = {
-  id: number
-  name: string
-  keys: string[]
-}
-
-const defaultScales: ScaleDefinition[] = seedPalette.seed.map(
-  (scale, index) => ({
-    id: scale.index ?? index + 1,
-    name: scale.semantic,
-    keys: scale.keys ?? [],
-  }),
-)
 
 const contrastOptions = [
   'CIE L* (d65)',
@@ -261,36 +248,173 @@ const KeyRow = memo(
   },
 )
 
+type ScaleEditorCardProps = {
+  scaleId: number
+}
+
+const ScaleEditorCard = memo(({ scaleId }: ScaleEditorCardProps) => {
+  const scale = usePaletteEditorStore((state) => state.scales[scaleId])
+  const updateScaleName = usePaletteEditorStore(
+    (state) => state.updateScaleName,
+  )
+  const updateKey = usePaletteEditorStore((state) => state.updateKey)
+  const addKey = usePaletteEditorStore((state) => state.addKey)
+  const removeKey = usePaletteEditorStore((state) => state.removeKey)
+  const duplicateScale = usePaletteEditorStore((state) => state.duplicateScale)
+  const deleteScale = usePaletteEditorStore((state) => state.deleteScale)
+
+  if (!scale) return null
+
+  return (
+    <div className="space-y-2 rounded-lg border p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          value={scale.name}
+          onChange={(event) => updateScaleName(scale.id, event.target.value)}
+          placeholder="Scale name"
+        />
+        <Badge variant="secondary">{scale.keys.length} keys</Badge>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">Keys</p>
+        <div className="space-y-2">
+          {scale.keys.map((key, index) => (
+            <KeyRow
+              key={`${scale.id}-${index}`}
+              scaleId={scale.id}
+              index={index}
+              value={key}
+              onChange={updateKey}
+              onRemove={removeKey}
+            />
+          ))}
+        </div>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="w-full justify-start"
+          onClick={() => addKey(scale.id)}
+        >
+          <Plus className="size-4" />
+          Add key
+        </Button>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Duplicate scale"
+          onClick={() => duplicateScale(scale.id)}
+        >
+          <Copy className="size-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Delete scale"
+          onClick={() => deleteScale(scale.id)}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
+    </div>
+  )
+})
+
+type ScalePreviewCardProps = {
+  scaleId: number
+  contrast: string
+  optimizationWeights: Map<number, string | undefined>
+}
+
+const ScalePreviewCard = memo(
+  ({ scaleId, contrast, optimizationWeights }: ScalePreviewCardProps) => {
+    const scale = usePaletteEditorStore((state) => state.scales[scaleId])
+    const deferredScale = useDeferredValue(scale)
+
+    const scaleModel = useMemo(() => {
+      if (!deferredScale) return null
+      const keys = normalizeKeys(deferredScale.keys)
+      return buildScale({
+        id: deferredScale.id,
+        semantic: deferredScale.name,
+        keys,
+      })
+    }, [deferredScale])
+
+    if (!scaleModel) return null
+
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="capitalize">{scaleModel.semantic}</CardTitle>
+            <CardDescription>
+              {scaleModel.destinationSpace.toUpperCase()} output
+            </CardDescription>
+          </div>
+          <Badge variant="outline">{scaleModel.swatches.length} swatches</Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(64px,1fr))] gap-3">
+            {scaleModel.swatches.map((swatch, idx) => {
+              const weightLabel = optimizationWeights.get(Number(swatch.weight))
+              const isDisabled = !weightLabel
+              return (
+                <div
+                  key={`${scaleModel.id}-${idx}`}
+                  className="flex flex-col items-center gap-2 text-[11px] font-medium"
+                >
+                  <span className="text-muted-foreground">
+                    {weightLabel ?? '—'}
+                  </span>
+                  <div
+                    className="flex h-16 w-full flex-col justify-between rounded-lg border px-2 py-1 text-[10px] shadow-sm"
+                    style={{
+                      background: isDisabled
+                        ? 'repeating-linear-gradient(-45deg, #f1f1f1, #f1f1f1 9px, #e3e3e3 9px, #e3e3e3 18px)'
+                        : swatch.value.destination,
+                      color: isDisabled
+                        ? '#6b7280'
+                        : swatchTextColor(swatch, contrast),
+                      opacity: isDisabled ? 0.6 : 1,
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {getSwatchIcons(swatch).map((item) => (
+                          <span key={item.key}>{item.node}</span>
+                        ))}
+                      </div>
+                      <span>{swatch.weight}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>{getContrastLabel(swatch, contrast)}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  },
+)
+
 export default function CreatePage() {
   const params = useParams<{ id: string }>()
   const paletteId = Number(params?.id ?? seedPalette.id)
-  const [paletteName, setPaletteName] = useState(seedPalette.name)
-  const [scales, setScales] = useState<ScaleDefinition[]>(() => defaultScales)
-  const [paletteRecord, setPaletteRecord] = useState<PaletteRecord>(seedPalette)
+  const setPalette = usePaletteEditorStore((state) => state.setPalette)
+  const paletteName = usePaletteEditorStore((state) => state.paletteName)
+  const setPaletteName = usePaletteEditorStore((state) => state.setPaletteName)
+  const scaleOrder = usePaletteEditorStore((state) => state.scaleOrder)
+  const addScale = usePaletteEditorStore((state) => state.addScale)
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null)
   const [optimization, setOptimization] = useState(
     optimizations[0]?.name ?? 'Universal',
   )
   const [contrast, setContrast] = useState(contrastOptions[0])
-
-  const deferredScales = useDeferredValue(scales)
-
-  const palette = useMemo(() => {
-    const seed: PaletteSeed[] = deferredScales.map((scale) => {
-      const keys = normalizeKeys(scale.keys)
-      return {
-        index: scale.id,
-        semantic: scale.name,
-        keys: keys.length ? keys : null,
-      }
-    })
-    return buildPalette(seed)
-  }, [deferredScales])
-
-  const scaleNameMap = useMemo(
-    () => new Map(scales.map((scale) => [scale.id, scale.name])),
-    [scales],
-  )
 
   const optimizationWeights = useMemo(() => {
     const selected =
@@ -303,118 +427,52 @@ export default function CreatePage() {
     return map
   }, [optimization])
 
-  const hasInvalidKeys = useMemo(
-    () =>
-      scales.some((scale) =>
-        scale.keys.some((key) => key.trim().length > 0 && !isValidColor(key)),
-      ),
-    [scales],
-  )
-
-  const handleRenameScale = useCallback((id: number, name: string) => {
-    setScales((prev) =>
-      prev.map((scale) => (scale.id === id ? { ...scale, name } : scale)),
-    )
-  }, [])
-
-  const handleAddScale = useCallback(() => {
-    setScales((prev) => {
-      const nextId = prev.length
-        ? Math.max(...prev.map((scale) => scale.id)) + 1
-        : 1
-      return [
-        ...prev,
-        {
-          id: nextId,
-          name: `New scale ${nextId}`,
-          keys: ['#6366f1'],
-        },
-      ]
-    })
-  }, [])
-
-  const handleUpdateKey = useCallback(
-    (scaleId: number, keyIndex: number, value: string) => {
-      setScales((prev) =>
-        prev.map((scale) => {
-          if (scale.id !== scaleId) return scale
-          const nextKeys = [...scale.keys]
-          nextKeys[keyIndex] = value
-          return { ...scale, keys: nextKeys }
+  const hasInvalidKeys = usePaletteEditorStore(
+    useCallback(
+      (state) =>
+        state.scaleOrder.some((scaleId) => {
+          const scale = state.scales[scaleId]
+          if (!scale) return false
+          return scale.keys.some(
+            (key) => key.trim().length > 0 && !isValidColor(key),
+          )
         }),
-      )
-    },
-    [],
+      [],
+    ),
   )
-
-  const handleAddKey = useCallback((scaleId: number) => {
-    setScales((prev) =>
-      prev.map((scale) => {
-        if (scale.id !== scaleId) return scale
-        return { ...scale, keys: [...scale.keys, '#ffffff'] }
-      }),
-    )
-  }, [])
-
-  const handleRemoveKey = useCallback((scaleId: number, keyIndex: number) => {
-    setScales((prev) =>
-      prev.map((scale) => {
-        if (scale.id !== scaleId) return scale
-        return {
-          ...scale,
-          keys: scale.keys.filter((_, index) => index !== keyIndex),
-        }
-      }),
-    )
-  }, [])
-
-  const handleDuplicateScale = useCallback((id: number) => {
-    setScales((prev) => {
-      const source = prev.find((scale) => scale.id === id)
-      if (!source) return prev
-      const nextId = Math.max(0, ...prev.map((scale) => scale.id)) + 1
-      return [
-        ...prev,
-        {
-          ...source,
-          id: nextId,
-          name: `${source.name} copy`,
-          keys: [...source.keys],
-        },
-      ]
-    })
-  }, [])
-
-  const handleDeleteScale = useCallback((id: number) => {
-    setScales((prev) => prev.filter((scale) => scale.id !== id))
-  }, [])
 
   useEffect(() => {
     const stored = loadPalettes()
     const match = stored.find((palette) => palette.id === paletteId)
     const next = match ?? seedPalette
-    setPaletteRecord(next)
-    setPaletteName(next.name)
-    setScales(
-      next.seed.map((scale, index) => ({
-        id: scale.index ?? index + 1,
-        name: scale.semantic,
-        keys: scale.keys ?? [],
-      })),
-    )
+    setPalette(next)
     setLastSavedAt(null)
-  }, [paletteId])
+  }, [paletteId, setPalette])
 
   useEffect(() => {
-    if (lastSavedAt) {
-      setLastSavedAt(null)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scales, paletteName])
+    const unsubscribe = usePaletteEditorStore.subscribe(
+      (state) => state.scales,
+      () => setLastSavedAt(null),
+    )
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    setLastSavedAt(null)
+  }, [paletteName])
 
   const handleSavePalette = () => {
     if (hasInvalidKeys) return
-    const seed: PaletteSeed[] = scales.map((scale, index) => {
+    const state = usePaletteEditorStore.getState()
+    const seed: PaletteSeed[] = state.scaleOrder.map((scaleId, index) => {
+      const scale = state.scales[scaleId]
+      if (!scale) {
+        return {
+          index: index + 1,
+          semantic: `Scale ${index + 1}`,
+          keys: null,
+        }
+      }
       const keys = normalizeKeys(scale.keys)
       return {
         index: scale.id ?? index + 1,
@@ -424,14 +482,12 @@ export default function CreatePage() {
     })
 
     const nextRecord: PaletteRecord = {
-      ...paletteRecord,
-      id: paletteId,
-      name: paletteName.trim() || `Palette ${paletteId}`,
+      id: state.paletteId || paletteId,
+      name: state.paletteName.trim() || `Palette ${paletteId}`,
       seed,
     }
 
     upsertPalette(nextRecord)
-    setPaletteRecord(nextRecord)
     setLastSavedAt(Date.now())
   }
 
@@ -511,69 +567,14 @@ export default function CreatePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {scales.map((scale) => (
-                <div key={scale.id} className="space-y-2 rounded-lg border p-3">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={scale.name}
-                      onChange={(event) =>
-                        handleRenameScale(scale.id, event.target.value)
-                      }
-                      placeholder="Scale name"
-                    />
-                    <Badge variant="secondary">{scale.keys.length} keys</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Keys
-                    </p>
-                    <div className="space-y-2">
-                      {scale.keys.map((key, index) => (
-                        <KeyRow
-                          key={`${scale.id}-${index}`}
-                          scaleId={scale.id}
-                          index={index}
-                          value={key}
-                          onChange={handleUpdateKey}
-                          onRemove={handleRemoveKey}
-                        />
-                      ))}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="w-full justify-start"
-                      onClick={() => handleAddKey(scale.id)}
-                    >
-                      <Plus className="size-4" />
-                      Add key
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label="Duplicate scale"
-                      onClick={() => handleDuplicateScale(scale.id)}
-                    >
-                      <Copy className="size-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label="Delete scale"
-                      onClick={() => handleDeleteScale(scale.id)}
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                </div>
+              {scaleOrder.map((scaleId) => (
+                <ScaleEditorCard key={scaleId} scaleId={scaleId} />
               ))}
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={handleAddScale}
+                onClick={addScale}
               >
                 <Plus className="size-4" />
                 Add scale
@@ -583,68 +584,14 @@ export default function CreatePage() {
         </aside>
 
         <main className="space-y-6">
-          {palette.values.map((scale) => {
-            const scaleName = scaleNameMap.get(scale.id) ?? 'Untitled scale'
-            return (
-              <Card key={scale.id}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="capitalize">{scaleName}</CardTitle>
-                    <CardDescription>
-                      {scale.destinationSpace.toUpperCase()} output
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline">
-                    {scale.swatches.length} swatches
-                  </Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(64px,1fr))] gap-3">
-                    {scale.swatches.map((swatch, idx) => {
-                      const weightLabel = optimizationWeights.get(
-                        Number(swatch.weight),
-                      )
-                      const isDisabled = !weightLabel
-                      return (
-                        <div
-                          key={`${scale.id}-${idx}`}
-                          className="flex flex-col items-center gap-2 text-[11px] font-medium"
-                        >
-                          <span className="text-muted-foreground">
-                            {weightLabel ?? '—'}
-                          </span>
-                          <div
-                            className="flex h-16 w-full flex-col justify-between rounded-lg border px-2 py-1 text-[10px] shadow-sm"
-                            style={{
-                              background: isDisabled
-                                ? 'repeating-linear-gradient(-45deg, #f1f1f1, #f1f1f1 9px, #e3e3e3 9px, #e3e3e3 18px)'
-                                : swatch.value.destination,
-                              color: isDisabled
-                                ? '#6b7280'
-                                : swatchTextColor(swatch, contrast),
-                              opacity: isDisabled ? 0.6 : 1,
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                {getSwatchIcons(swatch).map((item) => (
-                                  <span key={item.key}>{item.node}</span>
-                                ))}
-                              </div>
-                              <span>{swatch.weight}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>{getContrastLabel(swatch, contrast)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {scaleOrder.map((scaleId) => (
+            <ScalePreviewCard
+              key={scaleId}
+              scaleId={scaleId}
+              contrast={contrast}
+              optimizationWeights={optimizationWeights}
+            />
+          ))}
         </main>
       </div>
     </div>
