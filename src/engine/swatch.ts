@@ -32,6 +32,7 @@ export const buildSwatch = ({
   isLock,
 }: BuildSwatchOptions): Swatch => {
   const normalized = normalizeColorToDestinationGamut(color, destinationSpace)
+  const isOutOfGamut = !normalized.inGamut('srgb')
   const weight = luminanceToWeight(normalized.lab.l)
   const index = weights.findIndex((item) => item === weight)
 
@@ -48,6 +49,7 @@ export const buildSwatch = ({
     isKey,
     isAnchor,
     isLock,
+    isOutOfGamut,
     wcag_white: normalized.contrast(new Color('White'), 'WCAG21'),
     wcag_black: normalized.contrast(new Color('Black'), 'WCAG21'),
     apca_white: normalized.contrast(new Color('White'), 'APCA'),

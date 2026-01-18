@@ -23,6 +23,7 @@ export interface Swatch {
   isLock?: boolean
   isKey?: boolean
   isAnchor?: boolean
+  isOutOfGamut?: boolean
   wcag_white: number
   wcag_black: number
   apca_white: number
