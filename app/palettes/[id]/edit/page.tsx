@@ -212,53 +212,58 @@ const KeyRow = memo(
     return (
       <div className="space-y-2 rounded-md border border-muted/50 bg-muted/30 p-2">
         <div className="flex items-center gap-2">
-          <DialogTrigger>
-            <AriaButton
-              aria-label="Open color picker"
-              className="flex size-10 items-center justify-center rounded-md border bg-background shadow-sm"
-            >
-              <ColorSwatch color={pickerColor} className="size-8 rounded-sm" />
-            </AriaButton>
-            <Popover className="z-50">
-              <Dialog className="w-72 space-y-3 rounded-lg border bg-background p-3 shadow-lg">
-                <ColorPicker
-                  value={pickerColor}
-                  onChange={(color) =>
-                    onChange(scaleId, index, color.toString('hex'))
-                  }
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <ColorSwatch
-                        color={pickerColor}
-                        className="size-6 rounded-sm border"
-                      />
-                      <span>Drag to update the key color.</span>
-                    </div>
-                    <ColorArea
-                      colorSpace="hsb"
-                      xChannel="saturation"
-                      yChannel="brightness"
-                      className="relative h-28 w-full overflow-hidden rounded-md border"
-                    >
-                      <ColorThumb className="size-3 rounded-full border border-background bg-white shadow" />
-                    </ColorArea>
-                    <ColorSlider colorSpace="hsb" channel="hue">
-                      <SliderTrack className="relative h-3 w-full rounded-full border">
+          <div className="relative flex-1">
+            <DialogTrigger>
+              <AriaButton
+                aria-label="Open color picker"
+                className="absolute left-2 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-full "
+              >
+                <ColorSwatch
+                  color={pickerColor}
+                  className="size-4 rounded-full"
+                />
+              </AriaButton>
+              <Popover className="z-50">
+                <Dialog className="w-72 space-y-3 rounded-lg border bg-background p-3 shadow-lg">
+                  <ColorPicker
+                    value={pickerColor}
+                    onChange={(color) =>
+                      onChange(scaleId, index, color.toString('hex'))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <ColorSwatch
+                          color={pickerColor}
+                          className="size-6 rounded-sm border"
+                        />
+                        <span>Drag to update the key color.</span>
+                      </div>
+                      <ColorArea
+                        colorSpace="hsb"
+                        xChannel="saturation"
+                        yChannel="brightness"
+                        className="relative h-28 w-full overflow-hidden rounded-md border"
+                      >
                         <ColorThumb className="size-3 rounded-full border border-background bg-white shadow" />
-                      </SliderTrack>
-                    </ColorSlider>
-                  </div>
-                </ColorPicker>
-              </Dialog>
-            </Popover>
-          </DialogTrigger>
-          <Input
-            value={value}
-            onChange={(event) => onChange(scaleId, index, event.target.value)}
-            className={cn({ 'border-destructive': !valid })}
-            placeholder="#ffffff or oklch(...)"
-          />
+                      </ColorArea>
+                      <ColorSlider colorSpace="hsb" channel="hue">
+                        <SliderTrack className="relative h-3 w-full rounded-full border">
+                          <ColorThumb className="size-3 rounded-full border border-background bg-white shadow" />
+                        </SliderTrack>
+                      </ColorSlider>
+                    </div>
+                  </ColorPicker>
+                </Dialog>
+              </Popover>
+            </DialogTrigger>
+            <Input
+              value={value}
+              onChange={(event) => onChange(scaleId, index, event.target.value)}
+              className={cn('pl-8', { 'border-destructive': !valid })}
+              placeholder="#ffffff or oklch(...)"
+            />
+          </div>
           <AlertDialog>
             <AlertDialogTrigger
               render={
@@ -323,9 +328,9 @@ const ScaleEditorCard = memo(({ scaleId }: ScaleEditorCardProps) => {
         />
         <Badge variant="secondary">{scale.keys.length} keys</Badge>
       </div>
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-muted-foreground">Keys</p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {scale.keys.map((key, index) => (
             <KeyRow
               key={`${scale.id}-${index}`}
