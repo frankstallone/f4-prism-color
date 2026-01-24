@@ -6,6 +6,7 @@ import {
   useDeferredValue,
   useMemo,
   useState,
+  useId,
   type ReactElement,
 } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -40,6 +41,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   ColorArea,
   ColorPicker,
@@ -217,7 +219,7 @@ const KeyRow = memo(
             <DialogTrigger>
               <AriaButton
                 aria-label="Open color picker"
-                className="absolute left-2 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-full "
+                className="absolute left-2 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-full touch-target"
               >
                 <ColorSwatch
                   color={pickerColor}
@@ -262,6 +264,7 @@ const KeyRow = memo(
               value={value}
               onChange={(event) => onChange(scaleId, index, event.target.value)}
               className={cn('pl-8', { 'border-destructive': !valid })}
+              aria-label={`Key color ${index + 1}`}
               placeholder="#ffffff or oklch(...)"
             />
           </div>
@@ -322,7 +325,11 @@ const ScaleEditorCard = memo(({ scaleId }: ScaleEditorCardProps) => {
   return (
     <div className="space-y-2 rounded-lg border p-3">
       <div className="flex items-center gap-2">
+        <Label htmlFor={`scale-name-${scale.id}`} className="sr-only">
+          Scale name
+        </Label>
         <Input
+          id={`scale-name-${scale.id}`}
           value={scale.name}
           onChange={(event) => updateScaleName(scale.id, event.target.value)}
           placeholder="Scale name"
@@ -491,6 +498,9 @@ export default function CreatePage() {
   const setPaletteName = usePaletteEditorStore((state) => state.setPaletteName)
   const scaleOrder = usePaletteEditorStore((state) => state.scaleOrder)
   const addScale = usePaletteEditorStore((state) => state.addScale)
+  const paletteNameId = useId()
+  const optimizationLabelId = useId()
+  const contrastLabelId = useId()
   const [lastSavedAt, setLastSavedAt] = useState<{
     paletteId: number
     timestamp: number
@@ -594,8 +604,9 @@ export default function CreatePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Palette name</p>
+                  <Label htmlFor={paletteNameId}>Palette name</Label>
                   <Input
+                    id={paletteNameId}
                     value={paletteName}
                     onChange={(event) => setPaletteName(event.target.value)}
                     placeholder="Palette name"
@@ -612,7 +623,7 @@ export default function CreatePage() {
                   </p>
                 ) : null}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Optimization</p>
+                  <Label id={optimizationLabelId}>Optimization</Label>
                   <Select
                     value={optimization}
                     onValueChange={(value) =>
@@ -621,7 +632,10 @@ export default function CreatePage() {
                       )
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={optimizationLabelId}
+                    >
                       <SelectValue placeholder="Select optimization" />
                     </SelectTrigger>
                     <SelectContent>
@@ -634,14 +648,17 @@ export default function CreatePage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Contrast</p>
+                  <Label id={contrastLabelId}>Contrast</Label>
                   <Select
                     value={contrast}
                     onValueChange={(value) =>
                       setContrast(value ?? contrastOptions[0])
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={contrastLabelId}
+                    >
                       <SelectValue placeholder="Select contrast" />
                     </SelectTrigger>
                     <SelectContent>

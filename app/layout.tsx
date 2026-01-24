@@ -36,7 +36,13 @@ export default function RootLayout({
           'antialiased text-pretty',
         )}
       >
-        {children}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:shadow-lg"
+        >
+          Skip to content
+        </a>
+        <main id="main">{children}</main>
       </body>
     </html>
   )

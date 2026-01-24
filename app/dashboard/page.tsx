@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ReactElement } from 'react'
+import { useId, useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Anchor, Key, Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -130,6 +131,8 @@ export default function DashboardPage() {
     optimizations[0]?.name ?? 'Universal',
   )
   const [contrast, setContrast] = useState(contrastOptions[0])
+  const optimizationLabelId = useId()
+  const contrastLabelId = useId()
 
   const [paletteState, setPaletteState] = useState(() => {
     const stored = loadPalettes()
@@ -147,7 +150,6 @@ export default function DashboardPage() {
     () => buildPalette(selectedPalette?.seed ?? []),
     [selectedPalette],
   )
-
   const optimizationWeights = useMemo(() => {
     const selected =
       optimizations.find((item) => item.name === optimization) ??
@@ -205,7 +207,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Optimization</p>
+                  <Label id={optimizationLabelId}>Optimization</Label>
                   <Select
                     value={optimization}
                     onValueChange={(value) =>
@@ -214,7 +216,10 @@ export default function DashboardPage() {
                       )
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={optimizationLabelId}
+                    >
                       <SelectValue placeholder="Select optimization" />
                     </SelectTrigger>
                     <SelectContent>
@@ -227,14 +232,17 @@ export default function DashboardPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Contrast</p>
+                  <Label id={contrastLabelId}>Contrast</Label>
                   <Select
                     value={contrast}
                     onValueChange={(value) =>
                       setContrast(value ?? contrastOptions[0])
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={contrastLabelId}
+                    >
                       <SelectValue placeholder="Select contrast" />
                     </SelectTrigger>
                     <SelectContent>

@@ -54,12 +54,6 @@ function InputGroupAddon({
       data-slot="input-group-addon"
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) {
-          return
-        }
-        e.currentTarget.parentElement?.querySelector('input')?.focus()
-      }}
       {...props}
     />
   )
@@ -73,7 +67,7 @@ const inputGroupButtonVariants = cva(
         xs: "h-6 gap-1 rounded-[calc(var(--radius)-5px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
         sm: '',
         'icon-xs':
-          'size-6 rounded-[calc(var(--radius)-5px)] p-0 has-[>svg]:p-0',
+          'size-6 rounded-[calc(var(--radius)-5px)] p-0 has-[>svg]:p-0 touch-target',
         'icon-sm': 'size-8 p-0 has-[>svg]:p-0',
       },
     },

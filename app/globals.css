@@ -134,4 +134,11 @@
     font-size: 0.625rem;
     line-height: 0.875rem;
   }
+
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
