@@ -48,12 +48,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   ColorArea,
   ColorPicker,
@@ -74,7 +72,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PageHeader } from '@/components/page-header'
-import { buildScale, colorToHex, optimizations } from '@/src/engine'
+import {
+  buildPalette,
+  buildScale,
+  colorToHex,
+  optimizations,
+} from '@/src/engine'
 import type { PaletteSeed, Swatch } from '@/src/engine'
 import {
   deletePalette,
@@ -86,12 +89,7 @@ import {
 import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
 import { parseColor } from '@react-stately/color'
 import { cn } from '@/lib/utils'
-import {
-  decodeSharePayload,
-  encodeSharePayload,
-  isSharePayload,
-  type SharePayload,
-} from '@/src/lib/share'
+import { encodeSharePayload, type SharePayload } from '@/src/lib/share'
 
 const contrastOptions = [
   'CIE L* (d65)',
@@ -523,10 +521,6 @@ export default function CreatePage() {
   const paletteNameId = useId()
   const optimizationLabelId = useId()
   const contrastLabelId = useId()
-  const importFieldId = useId()
-  const [isImportOpen, setIsImportOpen] = useState(false)
-  const [importValue, setImportValue] = useState('')
-  const [importError, setImportError] = useState<string | null>(null)
   const [lastSavedAt, setLastSavedAt] = useState<{
     paletteId: number
     timestamp: number
@@ -581,11 +575,33 @@ export default function CreatePage() {
     })
   }
 
-  const buildSharePayload = (): SharePayload => {
+  const buildExportPayload = (): SharePayload => {
     const state = usePaletteEditorStore.getState()
+    const seed = buildPaletteSeed()
     return {
       name: state.paletteName.trim() || `Palette ${paletteId}`,
-      seed: buildPaletteSeed(),
+      seed,
+      scales: buildPalette(seed).values,
+    }
+  }
+
+  const buildSharePayload = (): SharePayload => {
+    const state = usePaletteEditorStore.getState()
+    const seed = buildPaletteSeed()
+    return {
+      name: state.paletteName.trim() || `Palette ${paletteId}`,
+      seed,
+    }
+  }
+
+  const handleCopyShareLink = async () => {
+    const payload = buildSharePayload()
+    const shareUrl = `${window.location.origin}/dashboard?share=${encodeSharePayload(payload)}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success('Share link copied.')
+    } catch {
+      window.prompt('Copy this share link:', shareUrl)
     }
   }
 
@@ -614,19 +630,8 @@ export default function CreatePage() {
     router.push('/dashboard')
   }
 
-  const handleCopyShareLink = async () => {
-    const payload = buildSharePayload()
-    const shareUrl = `${window.location.origin}/dashboard?share=${encodeSharePayload(payload)}`
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      toast.success('Share link copied.')
-    } catch {
-      window.prompt('Copy this share link:', shareUrl)
-    }
-  }
-
   const handleCopyJson = async () => {
-    const payload = buildSharePayload()
+    const payload = buildExportPayload()
     const json = JSON.stringify(payload, null, 2)
     try {
       await navigator.clipboard.writeText(json)
@@ -634,61 +639,6 @@ export default function CreatePage() {
     } catch {
       window.prompt('Copy this palette JSON:', json)
     }
-  }
-
-  const parseImportPayload = (raw: string): SharePayload | null => {
-    const trimmed = raw.trim()
-    if (!trimmed) return null
-    if (trimmed.includes('share=')) {
-      try {
-        const url = new URL(trimmed)
-        const shareValue = url.searchParams.get('share')
-        if (shareValue) {
-          const payload = decodeSharePayload(shareValue)
-          if (payload) return payload
-        }
-      } catch {
-        const match = trimmed.match(/share=([^&]+)/)
-        if (match?.[1]) {
-          const payload = decodeSharePayload(match[1])
-          if (payload) return payload
-        }
-      }
-    }
-    try {
-      const parsed = JSON.parse(trimmed) as unknown
-      if (isSharePayload(parsed)) return parsed
-      if (parsed && typeof parsed === 'object') {
-        const candidate = parsed as { name?: unknown; seed?: unknown }
-        if (isSharePayload({ name: candidate.name, seed: candidate.seed })) {
-          return {
-            name:
-              typeof candidate.name === 'string' ? candidate.name : undefined,
-            seed: candidate.seed as PaletteSeed[],
-          }
-        }
-      }
-    } catch {
-      return null
-    }
-    return null
-  }
-
-  const handleImportPalette = () => {
-    const payload = parseImportPayload(importValue)
-    if (!payload) {
-      setImportError('Paste a valid palette JSON or share link.')
-      return
-    }
-    setImportError(null)
-    setPalette({
-      id: paletteId,
-      name: payload.name?.trim() || `Palette ${paletteId}`,
-      seed: payload.seed,
-    })
-    setImportValue('')
-    setIsImportOpen(false)
-    toast.success('Palette imported.')
   }
 
   useEffect(() => {
@@ -733,10 +683,6 @@ export default function CreatePage() {
                     <DropdownMenuItem onClick={handleCopyJson}>
                       Copy JSON
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsImportOpen(true)}>
-                      Import JSON
-                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -774,46 +720,6 @@ export default function CreatePage() {
             </>
           }
         />
-        <AlertDialog
-          open={isImportOpen}
-          onOpenChange={(open) => {
-            setIsImportOpen(open)
-            if (!open) {
-              setImportValue('')
-              setImportError(null)
-            }
-          }}
-        >
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Import palette</AlertDialogTitle>
-              <AlertDialogDescription>
-                Paste a palette JSON export or a share link to replace the
-                current palette draft.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor={importFieldId}>Palette JSON or share link</Label>
-              <Textarea
-                id={importFieldId}
-                value={importValue}
-                onChange={(event) => setImportValue(event.target.value)}
-                className={cn({ 'border-destructive': !!importError })}
-                placeholder="Paste JSON or a share URL"
-                rows={6}
-              />
-              {importError ? (
-                <p className="text-xs text-destructive">{importError}</p>
-              ) : null}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleImportPalette}>
-                Import palette
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-6">
             <Card>

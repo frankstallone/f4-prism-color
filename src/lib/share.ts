@@ -1,8 +1,9 @@
-import type { PaletteSeed } from '@/src/engine'
+import type { PaletteSeed, Scale } from '@/src/engine'
 
 export type SharePayload = {
   name?: string
   seed: PaletteSeed[]
+  scales?: Scale[]
 }
 
 const isPaletteSeed = (value: unknown): value is PaletteSeed => {
@@ -20,6 +21,9 @@ export const isSharePayload = (value: unknown): value is SharePayload => {
   const candidate = value as SharePayload
   if (!Array.isArray(candidate.seed)) return false
   if (candidate.name !== undefined && typeof candidate.name !== 'string') {
+    return false
+  }
+  if (candidate.scales !== undefined && !Array.isArray(candidate.scales)) {
     return false
   }
   return candidate.seed.every(isPaletteSeed)

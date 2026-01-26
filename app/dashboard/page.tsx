@@ -195,7 +195,11 @@ export default function DashboardPage() {
   const handleCopyJson = async () => {
     if (!selectedPalette) return
     const json = JSON.stringify(
-      { name: selectedPalette.name, seed: selectedPalette.seed },
+      {
+        name: selectedPalette.name,
+        seed: selectedPalette.seed,
+        scales: palette.values,
+      },
       null,
       2,
     )
@@ -208,24 +212,27 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    if (shareHandledRef.current) return
-    const shareValue = searchParams.get('share')
-    if (!shareValue) return
-    const payload = decodeSharePayload(shareValue)
-    if (!payload) return
-    shareHandledRef.current = true
-    const nextPalette = createPaletteRecord(loadPalettes())
-    const draftPalette = {
-      ...nextPalette,
-      name: payload.name?.trim() || `Shared Palette ${nextPalette.id}`,
-      seed: payload.seed,
-    }
-    usePaletteEditorStore.getState().setPalette(draftPalette)
-    router.push(`/palettes/${draftPalette.id}/edit`)
-  }, [router, searchParams])
-
-  useEffect(() => {
     const stored = loadPalettes()
+    const shareValue = searchParams.get('share')
+    if (shareValue) {
+      const payload = decodeSharePayload(shareValue)
+      if (payload) {
+        if (!shareHandledRef.current) {
+          shareHandledRef.current = true
+          const nextPalette = createPaletteRecord(stored)
+          const sharedPalette = {
+            ...nextPalette,
+            name: payload.name?.trim() || `Shared Palette ${nextPalette.id}`,
+            seed: payload.seed,
+          }
+          setPaletteState({
+            palettes: [sharedPalette, ...stored],
+            selectedId: sharedPalette.id,
+          })
+        }
+        return
+      }
+    }
     const selectedParam = searchParams.get('selected')
     const selectedId = selectedParam ? Number(selectedParam) : null
     setPaletteState((prev) => {
