@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/page-header'
 import { buildPalette, optimizations } from '@/src/engine'
 import type { Swatch } from '@/src/engine'
@@ -244,36 +245,38 @@ export default function DashboardPage() {
     const shareValue = searchParams.get('share')
     if (shareValue) {
       const payload = decodeSharePayload(shareValue)
-      if (payload) {
-        if (!shareHandledRef.current) {
-          shareHandledRef.current = true
-          const nextPalette = createPaletteRecord(stored)
-          const sharedPalette = {
-            ...nextPalette,
-            name: payload.name?.trim() || `Shared Palette ${nextPalette.id}`,
-            seed: payload.seed,
-          }
+      if (payload && !shareHandledRef.current) {
+        shareHandledRef.current = true
+        const nextPalette = createPaletteRecord(stored)
+        const sharedPalette = {
+          ...nextPalette,
+          name: payload.name?.trim() || `Shared Palette ${nextPalette.id}`,
+          seed: payload.seed,
+        }
+        queueMicrotask(() => {
           setPaletteState({
             palettes: [sharedPalette, ...stored],
             selectedId: sharedPalette.id,
           })
-        }
+        })
         return
       }
     }
     const selectedParam = searchParams.get('selected')
     const selectedId = selectedParam ? Number(selectedParam) : null
-    setPaletteState((prev) => {
-      const resolvedSelectedId =
-        (selectedId &&
-          stored.find((palette) => palette.id === selectedId)?.id) ??
-        stored.find((palette) => palette.id === prev.selectedId)?.id ??
-        stored[0]?.id ??
-        seedPalette.id
-      return {
-        palettes: stored,
-        selectedId: resolvedSelectedId,
-      }
+    queueMicrotask(() => {
+      setPaletteState((prev) => {
+        const resolvedSelectedId =
+          (selectedId &&
+            stored.find((palette) => palette.id === selectedId)?.id) ??
+          stored.find((palette) => palette.id === prev.selectedId)?.id ??
+          stored[0]?.id ??
+          seedPalette.id
+        return {
+          palettes: stored,
+          selectedId: resolvedSelectedId,
+        }
+      })
     })
   }, [searchParams])
 
@@ -330,161 +333,186 @@ export default function DashboardPage() {
           }
         />
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-          <aside className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Palette dashboard</CardTitle>
-                <CardDescription>
-                  Review palette output and jump into edit mode.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label id={optimizationLabelId}>Optimization</Label>
-                  <Select
-                    value={optimization}
-                    onValueChange={(value) =>
-                      setOptimization(
-                        value ?? optimizations[0]?.name ?? 'Universal',
-                      )
-                    }
-                  >
-                    <SelectTrigger
-                      className="w-full"
-                      aria-labelledby={optimizationLabelId}
-                    >
-                      <SelectValue placeholder="Select optimization" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {optimizations.map((item) => (
-                        <SelectItem key={item.name} value={item.name}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label id={contrastLabelId}>Contrast</Label>
-                  <Select
-                    value={contrast}
-                    onValueChange={(value) =>
-                      setContrast(value ?? contrastOptions[0])
-                    }
-                  >
-                    <SelectTrigger
-                      className="w-full"
-                      aria-labelledby={contrastLabelId}
-                    >
-                      <SelectValue placeholder="Select contrast" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contrastOptions.map((item) => (
-                        <SelectItem key={item} value={item}>
-                          {item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Palettes</CardTitle>
-                <CardDescription>Select a palette to preview.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {palettes.map((paletteItem) => (
-                  <Button
-                    key={paletteItem.id}
-                    variant={
-                      paletteItem.id === selectedId ? 'secondary' : 'ghost'
-                    }
-                    className="w-full justify-between"
-                    onClick={() =>
-                      setPaletteState((prev) => ({
-                        ...prev,
-                        selectedId: paletteItem.id,
-                      }))
-                    }
-                  >
-                    <span className="text-left">{paletteItem.name}</span>
-                    <Badge variant="secondary">
-                      {paletteItem.seed.length} scales
-                    </Badge>
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
-          </aside>
-
-          <main className="space-y-6">
-            {palette.values.map((scale) => (
-              <Card key={scale.id}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="capitalize">
-                      {scale.semantic}
-                    </CardTitle>
-                    <CardDescription>
-                      {scale.destinationSpace.toUpperCase()} output
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline">
-                    {scale.swatches.length} swatches
-                  </Badge>
+          <Tabs
+            orientation="vertical"
+            value={String(selectedId)}
+            onValueChange={(value) => {
+              const nextId = Number(value)
+              if (Number.isNaN(nextId)) return
+              setPaletteState((prev) => ({
+                ...prev,
+                selectedId: nextId,
+              }))
+            }}
+            className="lg:contents"
+          >
+            <aside className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Palette dashboard</CardTitle>
+                  <CardDescription>
+                    Review palette output and jump into edit mode.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-swatch gap-3">
-                    {scale.swatches.map((swatch, idx) => {
-                      const weightLabel = optimizationWeights.get(
-                        Number(swatch.weight),
-                      )
-                      const isDisabled = !weightLabel
-                      return (
-                        <div
-                          key={`${scale.id}-${idx}`}
-                          className="flex flex-col items-center gap-2 text-xs font-medium tabular-nums"
-                        >
-                          <span className="text-muted-foreground">
-                            {weightLabel ?? '—'}
-                          </span>
-                          <div
-                            className={cn(
-                              'flex h-16 w-full flex-col justify-between rounded-lg border px-2 py-1 text-2xs shadow-sm',
-                              isDisabled &&
-                                'border-dashed bg-muted/60 text-muted-foreground opacity-80',
-                            )}
-                            style={{
-                              background: isDisabled
-                                ? undefined
-                                : swatch.value.destination,
-                              color: isDisabled
-                                ? undefined
-                                : swatchTextColor(swatch, contrast),
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                {getSwatchIcons(swatch).map((item) => (
-                                  <span key={item.key}>{item.node}</span>
-                                ))}
-                              </div>
-                              <span>{swatch.weight}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>{getContrastLabel(swatch, contrast)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label id={optimizationLabelId}>Optimization</Label>
+                    <Select
+                      value={optimization}
+                      onValueChange={(value) =>
+                        setOptimization(
+                          value ?? optimizations[0]?.name ?? 'Universal',
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-labelledby={optimizationLabelId}
+                      >
+                        <SelectValue placeholder="Select optimization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {optimizations.map((item) => (
+                          <SelectItem key={item.name} value={item.name}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label id={contrastLabelId}>Contrast</Label>
+                    <Select
+                      value={contrast}
+                      onValueChange={(value) =>
+                        setContrast(value ?? contrastOptions[0])
+                      }
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-labelledby={contrastLabelId}
+                      >
+                        <SelectValue placeholder="Select contrast" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contrastOptions.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {item}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </main>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Palettes</CardTitle>
+                  <CardDescription>
+                    Select a palette to preview.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TabsList
+                    variant="line"
+                    className="w-full flex-col items-stretch gap-1 bg-transparent p-0"
+                  >
+                    {palettes.map((paletteItem) => (
+                      <TabsTrigger
+                        key={paletteItem.id}
+                        value={String(paletteItem.id)}
+                        className="w-full justify-between rounded-md border border-transparent px-3 py-2 text-left data-active:bg-muted data-active:text-foreground data-active:shadow-none"
+                      >
+                        <span className="text-left">{paletteItem.name}</span>
+                        <Badge
+                          variant="outline"
+                          className="border-muted/60 text-muted-foreground/70"
+                        >
+                          {paletteItem.seed.length} scales
+                        </Badge>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </CardContent>
+              </Card>
+            </aside>
+
+            <main className="space-y-6">
+              {palettes.map((paletteItem) => (
+                <TabsContent
+                  key={paletteItem.id}
+                  value={String(paletteItem.id)}
+                >
+                  {buildPalette(paletteItem.seed).values.map((scale) => (
+                    <Card key={scale.id}>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                          <CardTitle className="capitalize">
+                            {scale.semantic}
+                          </CardTitle>
+                          <CardDescription>
+                            {scale.destinationSpace.toUpperCase()} output
+                          </CardDescription>
+                        </div>
+                        <Badge variant="outline">
+                          {scale.swatches.length} swatches
+                        </Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-swatch gap-3">
+                          {scale.swatches.map((swatch, idx) => {
+                            const weightLabel = optimizationWeights.get(
+                              Number(swatch.weight),
+                            )
+                            const isDisabled = !weightLabel
+                            return (
+                              <div
+                                key={`${scale.id}-${idx}`}
+                                className="flex flex-col items-center gap-2 text-xs font-medium tabular-nums"
+                              >
+                                <span className="text-muted-foreground">
+                                  {weightLabel ?? '—'}
+                                </span>
+                                <div
+                                  className={cn(
+                                    'flex h-16 w-full flex-col justify-between rounded-lg border px-2 py-1 text-2xs shadow-sm',
+                                    isDisabled &&
+                                      'border-dashed bg-muted/60 text-muted-foreground opacity-80',
+                                  )}
+                                  style={{
+                                    background: isDisabled
+                                      ? undefined
+                                      : swatch.value.destination,
+                                    color: isDisabled
+                                      ? undefined
+                                      : swatchTextColor(swatch, contrast),
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1">
+                                      {getSwatchIcons(swatch).map((item) => (
+                                        <span key={item.key}>{item.node}</span>
+                                      ))}
+                                    </div>
+                                    <span>{swatch.weight}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span>
+                                      {getContrastLabel(swatch, contrast)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
+              ))}
+            </main>
+          </Tabs>
         </div>
       </div>
     </div>
