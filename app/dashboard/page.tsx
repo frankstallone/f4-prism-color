@@ -45,7 +45,13 @@ import {
   seedPalette,
 } from '@/src/lib/palettes'
 import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
-import { decodeSharePayload, encodeSharePayload } from '@/src/lib/share'
+import {
+  buildDtcgTokens,
+  buildExportPayload,
+  buildTailwindThemeExport,
+  decodeSharePayload,
+  encodeSharePayload,
+} from '@/src/lib/share'
 import { cn } from '@/lib/utils'
 
 const contrastOptions = [
@@ -194,20 +200,42 @@ export default function DashboardPage() {
 
   const handleCopyJson = async () => {
     if (!selectedPalette) return
-    const json = JSON.stringify(
-      {
-        name: selectedPalette.name,
-        seed: selectedPalette.seed,
-        scales: palette.values,
-      },
-      null,
-      2,
+    const exportPayload = buildExportPayload(
+      selectedPalette.name,
+      palette.values,
     )
+    const json = JSON.stringify(exportPayload, null, 2)
     try {
       await navigator.clipboard.writeText(json)
       toast.success('Palette JSON copied.')
     } catch {
       window.prompt('Copy this palette JSON:', json)
+    }
+  }
+
+  const handleCopyDtcg = async () => {
+    if (!selectedPalette) return
+    const tokens = buildDtcgTokens(selectedPalette.name, palette.values)
+    const json = JSON.stringify(tokens, null, 2)
+    try {
+      await navigator.clipboard.writeText(json)
+      toast.success('DTCG tokens copied.')
+    } catch {
+      window.prompt('Copy these DTCG tokens:', json)
+    }
+  }
+
+  const handleCopyTailwind = async () => {
+    if (!selectedPalette) return
+    const themeExport = buildTailwindThemeExport(
+      selectedPalette.name,
+      palette.values,
+    )
+    try {
+      await navigator.clipboard.writeText(themeExport.css)
+      toast.success('Tailwind theme copied.')
+    } catch {
+      window.prompt('Copy this Tailwind theme:', themeExport.css)
     }
   }
 
@@ -285,6 +313,12 @@ export default function DashboardPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleCopyJson}>
                       Copy JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyDtcg}>
+                      Copy DTCG tokens
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyTailwind}>
+                      Copy Tailwind theme
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>

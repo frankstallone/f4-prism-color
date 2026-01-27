@@ -89,7 +89,13 @@ import {
 import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
 import { parseColor } from '@react-stately/color'
 import { cn } from '@/lib/utils'
-import { encodeSharePayload, type SharePayload } from '@/src/lib/share'
+import {
+  buildDtcgTokens,
+  buildExportPayload,
+  buildTailwindThemeExport,
+  encodeSharePayload,
+  type SharePayload,
+} from '@/src/lib/share'
 
 const contrastOptions = [
   'CIE L* (d65)',
@@ -575,16 +581,6 @@ export default function CreatePage() {
     })
   }
 
-  const buildExportPayload = (): SharePayload => {
-    const state = usePaletteEditorStore.getState()
-    const seed = buildPaletteSeed()
-    return {
-      name: state.paletteName.trim() || `Palette ${paletteId}`,
-      seed,
-      scales: buildPalette(seed).values,
-    }
-  }
-
   const buildSharePayload = (): SharePayload => {
     const state = usePaletteEditorStore.getState()
     const seed = buildPaletteSeed()
@@ -631,13 +627,49 @@ export default function CreatePage() {
   }
 
   const handleCopyJson = async () => {
-    const payload = buildExportPayload()
-    const json = JSON.stringify(payload, null, 2)
+    const state = usePaletteEditorStore.getState()
+    const seed = buildPaletteSeed()
+    const exportPayload = buildExportPayload(
+      state.paletteName.trim() || `Palette ${paletteId}`,
+      buildPalette(seed).values,
+    )
+    const json = JSON.stringify(exportPayload, null, 2)
     try {
       await navigator.clipboard.writeText(json)
       toast.success('Palette JSON copied.')
     } catch {
       window.prompt('Copy this palette JSON:', json)
+    }
+  }
+
+  const handleCopyDtcg = async () => {
+    const state = usePaletteEditorStore.getState()
+    const seed = buildPaletteSeed()
+    const tokens = buildDtcgTokens(
+      state.paletteName.trim() || `Palette ${paletteId}`,
+      buildPalette(seed).values,
+    )
+    const json = JSON.stringify(tokens, null, 2)
+    try {
+      await navigator.clipboard.writeText(json)
+      toast.success('DTCG tokens copied.')
+    } catch {
+      window.prompt('Copy these DTCG tokens:', json)
+    }
+  }
+
+  const handleCopyTailwind = async () => {
+    const state = usePaletteEditorStore.getState()
+    const seed = buildPaletteSeed()
+    const themeExport = buildTailwindThemeExport(
+      state.paletteName.trim() || `Palette ${paletteId}`,
+      buildPalette(seed).values,
+    )
+    try {
+      await navigator.clipboard.writeText(themeExport.css)
+      toast.success('Tailwind theme copied.')
+    } catch {
+      window.prompt('Copy this Tailwind theme:', themeExport.css)
     }
   }
 
@@ -682,6 +714,12 @@ export default function CreatePage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleCopyJson}>
                       Copy JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyDtcg}>
+                      Copy DTCG tokens
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyTailwind}>
+                      Copy Tailwind theme
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>

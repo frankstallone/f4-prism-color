@@ -1,9 +1,49 @@
 import type { PaletteSeed, Scale } from '@/src/engine'
+import { toColor } from '@/src/engine/color'
+import type Color from 'colorjs.io'
 
 export type SharePayload = {
   name?: string
   seed: PaletteSeed[]
   scales?: Scale[]
+}
+
+export type ExportSwatch = {
+  weight: string
+  hex: string
+  oklch: string
+}
+
+export type ExportScale = {
+  name: string
+  swatches: ExportSwatch[]
+}
+
+export type ExportPayload = {
+  name: string
+  scales: ExportScale[]
+}
+
+export type DtcgColorToken = {
+  $type: 'color'
+  $value: {
+    colorSpace: 'oklch'
+    components: [number, number, number]
+    alpha?: number
+  }
+  $extensions?: {
+    hex?: string
+    css?: string
+  }
+}
+
+export type DtcgTokens = {
+  color: Record<string, Record<string, Record<string, DtcgColorToken>>>
+}
+
+export type TailwindThemeExport = {
+  name: string
+  css: string
 }
 
 const isPaletteSeed = (value: unknown): value is PaletteSeed => {
@@ -46,5 +86,84 @@ export const decodeSharePayload = (value: string) => {
     return isSharePayload(parsed) ? parsed : null
   } catch {
     return null
+  }
+}
+
+export const buildExportPayload = (
+  name: string,
+  scales: Scale[],
+): ExportPayload => {
+  return {
+    name,
+    scales: scales.map((scale) => ({
+      name: scale.semantic,
+      swatches: scale.swatches.map((swatch) => ({
+        weight: swatch.weight,
+        hex: swatch.hex ?? swatch.value.hex,
+        oklch: toColor(swatch.color).to('oklch').toString(),
+      })),
+    })),
+  }
+}
+
+export const buildDtcgTokens = (name: string, scales: Scale[]): DtcgTokens => {
+  const paletteKey = name.trim() || 'palette'
+  const color: DtcgTokens['color'] = {
+    [paletteKey]: {},
+  }
+
+  scales.forEach((scale) => {
+    const scaleKey = scale.semantic
+    if (!color[paletteKey][scaleKey]) {
+      color[paletteKey][scaleKey] = {}
+    }
+    scale.swatches.forEach((swatch) => {
+      const colorValue = toColor(swatch.color)
+      const oklch = colorValue.to('oklch')
+      const [l, c, h] = oklch.coords as [number, number, number]
+      color[paletteKey][scaleKey][swatch.weight] = {
+        $type: 'color',
+        $value: {
+          colorSpace: 'oklch',
+          components: [l, c, h],
+          alpha: typeof oklch.alpha === 'number' ? oklch.alpha : 1,
+        },
+        $extensions: {
+          hex: swatch.hex ?? swatch.value.hex,
+          css: oklch.toString(),
+        },
+      }
+    })
+  })
+
+  return { color }
+}
+
+const slugifyToken = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+const formatOklch = (value: Color) => value.to('oklch').toString()
+
+export const buildTailwindThemeExport = (
+  name: string,
+  scales: Scale[],
+): TailwindThemeExport => {
+  const lines: string[] = []
+  scales.forEach((scale) => {
+    const scaleKey = slugifyToken(scale.semantic || 'scale')
+    scale.swatches.forEach((swatch) => {
+      const tokenName = `--color-${scaleKey}-${swatch.weight}`
+      const oklch = formatOklch(toColor(swatch.color))
+      lines.push(`  ${tokenName}: ${oklch};`)
+    })
+  })
+
+  return {
+    name: name.trim() || 'palette',
+    css: `@theme {\n${lines.join('\n')}\n}`,
   }
 }
