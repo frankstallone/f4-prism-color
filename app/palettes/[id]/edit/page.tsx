@@ -87,6 +87,7 @@ import {
   loadPalettes,
   upsertPalette,
   type PaletteRecord,
+  type OutputSpace,
 } from '@/src/lib/palettes'
 import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
 import { parseColor } from '@react-stately/color'
@@ -106,6 +107,13 @@ const contrastOptions = [
   'Ok L*',
   'CAM16',
   'HCT T%',
+]
+
+const outputSpaceOptions: Array<{ label: string; value: OutputSpace }> = [
+  { label: 'Auto (match key)', value: 'auto' },
+  { label: 'OKLCH', value: 'oklch' },
+  { label: 'Display P3', value: 'p3' },
+  { label: 'sRGB', value: 'srgb' },
 ]
 
 const getContrastLabel = (swatch: Swatch, contrast: string) => {
@@ -142,6 +150,9 @@ const swatchTextColor = (swatch: Swatch, contrast: string) => {
   const black = Math.abs(swatch.apca_black)
   return white > black ? '#ffffff' : '#111111'
 }
+
+const resolveOutputSpace = (value?: OutputSpace) =>
+  value && value !== 'auto' ? value : undefined
 
 const getSwatchIcons = (swatch: Swatch) => {
   const icons: Array<{ key: string; node: ReactElement }> = []
@@ -435,22 +446,33 @@ type ScalePreviewCardProps = {
   scaleId: number
   contrast: string
   optimizationWeights: Map<number, string | undefined>
+  outputSpace?: OutputSpace
 }
 
 const ScalePreviewCard = memo(
-  ({ scaleId, contrast, optimizationWeights }: ScalePreviewCardProps) => {
+  ({
+    scaleId,
+    contrast,
+    optimizationWeights,
+    outputSpace,
+  }: ScalePreviewCardProps) => {
     const scale = usePaletteEditorStore((state) => state.scales[scaleId])
     const deferredScale = useDeferredValue(scale)
 
     const scaleModel = useMemo(() => {
       if (!deferredScale) return null
       const keys = normalizeKeys(deferredScale.keys)
-      return buildScale({
-        id: deferredScale.id,
-        semantic: deferredScale.name,
-        keys,
-      })
-    }, [deferredScale])
+      return buildScale(
+        {
+          id: deferredScale.id,
+          semantic: deferredScale.name,
+          keys,
+        },
+        {
+          destinationSpace: resolveOutputSpace(outputSpace),
+        },
+      )
+    }, [deferredScale, outputSpace])
 
     if (!scaleModel) return null
 
@@ -522,11 +544,14 @@ export default function CreatePage() {
   const paletteId = Number(params?.id ?? seedPalette.id)
   const paletteName = usePaletteEditorStore((state) => state.paletteName)
   const setPaletteName = usePaletteEditorStore((state) => state.setPaletteName)
+  const outputSpace = usePaletteEditorStore((state) => state.outputSpace)
+  const setOutputSpace = usePaletteEditorStore((state) => state.setOutputSpace)
   const setPalette = usePaletteEditorStore((state) => state.setPalette)
   const currentPaletteId = usePaletteEditorStore((state) => state.paletteId)
   const scaleOrder = usePaletteEditorStore((state) => state.scaleOrder)
   const addScale = usePaletteEditorStore((state) => state.addScale)
   const paletteNameId = useId()
+  const outputSpaceLabelId = useId()
   const optimizationLabelId = useId()
   const contrastLabelId = useId()
   const [lastSavedAt, setLastSavedAt] = useState<{
@@ -589,6 +614,7 @@ export default function CreatePage() {
     return {
       name: state.paletteName.trim() || `Palette ${paletteId}`,
       seed,
+      outputSpace: state.outputSpace,
     }
   }
 
@@ -612,6 +638,7 @@ export default function CreatePage() {
       id: state.paletteId || paletteId,
       name: state.paletteName.trim() || `Palette ${paletteId}`,
       seed,
+      outputSpace: state.outputSpace,
     }
 
     upsertPalette(nextRecord)
@@ -633,7 +660,9 @@ export default function CreatePage() {
     const seed = buildPaletteSeed()
     const exportPayload = buildExportPayload(
       state.paletteName.trim() || `Palette ${paletteId}`,
-      buildPalette(seed).values,
+      buildPalette(seed, {
+        destinationSpace: resolveOutputSpace(state.outputSpace),
+      }).values,
     )
     const json = JSON.stringify(exportPayload, null, 2)
     try {
@@ -649,7 +678,9 @@ export default function CreatePage() {
     const seed = buildPaletteSeed()
     const tokens = buildDtcgTokens(
       state.paletteName.trim() || `Palette ${paletteId}`,
-      buildPalette(seed).values,
+      buildPalette(seed, {
+        destinationSpace: resolveOutputSpace(state.outputSpace),
+      }).values,
     )
     const json = JSON.stringify(tokens, null, 2)
     try {
@@ -665,7 +696,9 @@ export default function CreatePage() {
     const seed = buildPaletteSeed()
     const themeExport = buildTailwindThemeExport(
       state.paletteName.trim() || `Palette ${paletteId}`,
-      buildPalette(seed).values,
+      buildPalette(seed, {
+        destinationSpace: resolveOutputSpace(state.outputSpace),
+      }).values,
     )
     try {
       await navigator.clipboard.writeText(themeExport.css)
@@ -766,7 +799,7 @@ export default function CreatePage() {
               <CardHeader>
                 <CardTitle>Edit palette</CardTitle>
                 <CardDescription>
-                  Name this palette and shape the scale output.
+                  Name this palette and choose the output space.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -789,6 +822,47 @@ export default function CreatePage() {
                     Fix invalid keys before saving.
                   </p>
                 ) : null}
+                <div className="space-y-2">
+                  <Label id={outputSpaceLabelId}>Output space</Label>
+                  <Select
+                    value={outputSpace}
+                    onValueChange={(value) =>
+                      setOutputSpace((value as OutputSpace) ?? 'auto')
+                    }
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={outputSpaceLabelId}
+                    >
+                      <SelectValue>
+                        {outputSpaceOptions.find(
+                          (item) => item.value === outputSpace,
+                        )?.label ?? 'Auto (match key)'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {outputSpaceOptions.map((item) => (
+                        <SelectItem
+                          key={item.value}
+                          value={item.value}
+                          label={item.label}
+                        >
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>View options</CardTitle>
+                <CardDescription>
+                  Adjust how the scale is labeled and measured.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label id={optimizationLabelId}>Optimization</Label>
                   <Select
@@ -888,6 +962,7 @@ export default function CreatePage() {
                 scaleId={scaleId}
                 contrast={contrast}
                 optimizationWeights={optimizationWeights}
+                outputSpace={outputSpace}
               />
             ))}
           </main>

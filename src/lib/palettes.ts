@@ -1,14 +1,24 @@
 import type { PaletteSeed } from '@/src/engine'
 
+export type OutputSpace = 'auto' | 'srgb' | 'oklch' | 'p3'
+
 export type PaletteRecord = {
   id: number
   name: string
   seed: PaletteSeed[]
+  outputSpace?: OutputSpace
 }
 
 const storageKey = 'prismcolor:palettes'
 
-export const seedPalette: PaletteRecord = {
+const defaultOutputSpace: OutputSpace = 'auto'
+
+const normalizePalette = (palette: PaletteRecord): PaletteRecord => ({
+  ...palette,
+  outputSpace: palette.outputSpace ?? defaultOutputSpace,
+})
+
+export const seedPalette: PaletteRecord = normalizePalette({
   id: 1,
   name: 'Prism',
   seed: [
@@ -29,7 +39,7 @@ export const seedPalette: PaletteRecord = {
     { index: 7, semantic: 'system', keys: ['#0A66D8'] },
     { index: 8, semantic: 'neutral', keys: null },
   ],
-}
+})
 
 const getDefaultPalettes = (): PaletteRecord[] => [seedPalette]
 
@@ -42,7 +52,7 @@ export const loadPalettes = (): PaletteRecord[] => {
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return getDefaultPalettes()
     }
-    return parsed
+    return parsed.map(normalizePalette)
   } catch {
     return getDefaultPalettes()
   }
@@ -57,12 +67,13 @@ export const upsertPalette = (
   palette: PaletteRecord,
   palettes?: PaletteRecord[],
 ) => {
+  const normalized = normalizePalette(palette)
   const next = palettes ? [...palettes] : loadPalettes()
-  const index = next.findIndex((item) => item.id === palette.id)
+  const index = next.findIndex((item) => item.id === normalized.id)
   if (index >= 0) {
-    next[index] = palette
+    next[index] = normalized
   } else {
-    next.push(palette)
+    next.push(normalized)
   }
   savePalettes(next)
   return next
@@ -82,7 +93,7 @@ export const createPaletteRecord = (
   const nextId = palettes.length
     ? Math.max(...palettes.map((palette) => palette.id)) + 1
     : 1
-  return {
+  return normalizePalette({
     id: nextId,
     name: `New Palette ${nextId}`,
     seed: [
@@ -92,5 +103,5 @@ export const createPaletteRecord = (
         keys: ['#6366f1'],
       },
     ],
-  }
+  })
 }

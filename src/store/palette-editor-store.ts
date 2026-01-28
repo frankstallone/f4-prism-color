@@ -3,6 +3,7 @@ import {
   loadPalettes,
   seedPalette,
   type PaletteRecord,
+  type OutputSpace,
 } from '@/src/lib/palettes'
 
 export type ScaleState = {
@@ -14,10 +15,12 @@ export type ScaleState = {
 type PaletteEditorState = {
   paletteId: number
   paletteName: string
+  outputSpace: OutputSpace
   scaleOrder: number[]
   scales: Record<number, ScaleState>
   setPalette: (palette: PaletteRecord) => void
   setPaletteName: (name: string) => void
+  setOutputSpace: (space: OutputSpace) => void
   updateScaleName: (id: number, name: string) => void
   addScale: () => void
   duplicateScale: (id: number) => void
@@ -62,6 +65,7 @@ const initialScaleState = buildScaleState(initialPalette)
 export const usePaletteEditorStore = create<PaletteEditorState>((set) => ({
   paletteId: initialPalette.id,
   paletteName: initialPalette.name,
+  outputSpace: initialPalette.outputSpace ?? 'auto',
   scaleOrder: initialScaleState.scaleOrder,
   scales: initialScaleState.scales,
   setPalette: (palette) => {
@@ -69,11 +73,13 @@ export const usePaletteEditorStore = create<PaletteEditorState>((set) => ({
     set({
       paletteId: palette.id,
       paletteName: palette.name,
+      outputSpace: palette.outputSpace ?? 'auto',
       scales,
       scaleOrder,
     })
   },
   setPaletteName: (paletteName) => set({ paletteName }),
+  setOutputSpace: (outputSpace) => set({ outputSpace }),
   updateScaleName: (id, name) =>
     set((state) => ({
       scales: {

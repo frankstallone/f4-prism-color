@@ -65,7 +65,7 @@ export const buildScale = (
   )
   let destinationSpace = options.destinationSpace ?? 'srgb'
 
-  if (colors.length) {
+  if (colors.length && !options.destinationSpace) {
     destinationSpace = colors[0].space.id
   }
 

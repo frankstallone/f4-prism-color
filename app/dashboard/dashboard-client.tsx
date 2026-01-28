@@ -45,6 +45,7 @@ import {
   createPaletteRecord,
   loadPalettes,
   seedPalette,
+  type OutputSpace,
 } from '@/src/lib/palettes'
 import { usePaletteEditorStore } from '@/src/store/palette-editor-store'
 import {
@@ -99,6 +100,9 @@ const swatchTextColor = (swatch: Swatch, contrast: string) => {
   const black = Math.abs(swatch.apca_black)
   return white > black ? '#ffffff' : '#111111'
 }
+
+const resolveOutputSpace = (value?: OutputSpace) =>
+  value && value !== 'auto' ? value : undefined
 
 const getSwatchIcons = (swatch: Swatch) => {
   const icons: Array<{ key: string; node: ReactElement }> = []
@@ -170,10 +174,12 @@ export default function DashboardClient() {
   const selectedPalette =
     palettes.find((palette) => palette.id === selectedId) ?? palettes[0]
 
-  const palette = useMemo(
-    () => buildPalette(selectedPalette?.seed ?? []),
-    [selectedPalette],
-  )
+  const palette = useMemo(() => {
+    const outputSpace = resolveOutputSpace(selectedPalette?.outputSpace)
+    return buildPalette(selectedPalette?.seed ?? [], {
+      destinationSpace: outputSpace,
+    })
+  }, [selectedPalette])
   const optimizationWeights = useMemo(() => {
     const selected =
       optimizations.find((item) => item.name === optimization) ??
@@ -190,6 +196,7 @@ export default function DashboardClient() {
     const payload = {
       name: selectedPalette.name,
       seed: selectedPalette.seed,
+      outputSpace: selectedPalette.outputSpace,
     }
     const shareUrl = `${window.location.origin}/dashboard?share=${encodeSharePayload(payload)}`
     try {
@@ -253,6 +260,7 @@ export default function DashboardClient() {
           ...nextPalette,
           name: payload.name?.trim() || `Shared Palette ${nextPalette.id}`,
           seed: payload.seed,
+          outputSpace: payload.outputSpace ?? nextPalette.outputSpace,
         }
         queueMicrotask(() => {
           setPaletteState({
@@ -463,7 +471,11 @@ export default function DashboardClient() {
                   value={String(paletteItem.id)}
                   className="space-y-6"
                 >
-                  {buildPalette(paletteItem.seed).values.map((scale) => (
+                  {buildPalette(paletteItem.seed, {
+                    destinationSpace: resolveOutputSpace(
+                      paletteItem.outputSpace,
+                    ),
+                  }).values.map((scale) => (
                     <Card key={scale.id}>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <div>

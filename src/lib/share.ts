@@ -1,4 +1,5 @@
 import type { PaletteSeed, Scale } from '@/src/engine'
+import type { OutputSpace } from '@/src/lib/palettes'
 import { toColor } from '@/src/engine/color'
 import type Color from 'colorjs.io'
 
@@ -6,6 +7,7 @@ export type SharePayload = {
   name?: string
   seed: PaletteSeed[]
   scales?: Scale[]
+  outputSpace?: OutputSpace
 }
 
 export type ExportSwatch = {
@@ -64,6 +66,12 @@ export const isSharePayload = (value: unknown): value is SharePayload => {
     return false
   }
   if (candidate.scales !== undefined && !Array.isArray(candidate.scales)) {
+    return false
+  }
+  if (
+    candidate.outputSpace !== undefined &&
+    !['auto', 'srgb', 'oklch', 'p3'].includes(candidate.outputSpace)
+  ) {
     return false
   }
   return candidate.seed.every(isPaletteSeed)
