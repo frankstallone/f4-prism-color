@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Anchor,
   Copy,
+  ExternalLink,
   Key,
   Lock,
   Plus,
@@ -72,6 +73,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PageHeader } from '@/components/page-header'
+import { TonalGuide } from '@/components/tonal-guide'
 import {
   buildPalette,
   buildScale,
@@ -862,6 +864,24 @@ export default function CreatePage() {
           </aside>
 
           <main className="space-y-6">
+            <Card className="bg-background/80">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle>Tonal categories</CardTitle>
+                <a
+                  href="https://medium.com/user-experience-design-1/the-universal-color-palette-9826deb94f7"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Open Kevin Muldoon’s Universal Color Palette article"
+                  aria-label="Open Kevin Muldoon’s Universal Color Palette article"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <ExternalLink className="size-4" />
+                </a>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <TonalGuide />
+              </CardContent>
+            </Card>
             {scaleOrder.map((scaleId) => (
               <ScalePreviewCard
                 key={scaleId}
