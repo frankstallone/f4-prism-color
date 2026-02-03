@@ -345,7 +345,7 @@ export default function DashboardClient() {
           <SidebarHeader>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Workspace</p>
-              <p className="text-sm font-semibold">Prism Color</p>
+              <p className="text-sm font-semibold">Tonal Foundry</p>
             </div>
           </SidebarHeader>
           <SidebarContent>

@@ -1,6 +1,6 @@
-# Prism Color
+# Tonal Foundry
 
-Prism Color is a palette lab for building multi-scale color systems, comparing
+Tonal Foundry is a palette lab for building multi-scale color systems, comparing
 contrast metrics, and previewing optimized swatches in real time. It is a
 modern take on Kevin Muldoon's original Prism Color work, inspired by
 [prismcolor.io](https://github.com/caoimghgin/prismcolor.io).
@@ -71,4 +71,4 @@ npm run format
 ## Notes
 
 Palette data is stored in the browser using localStorage under the
-`prismcolor:palettes` key.
+`tonalfoundry:palettes` key (with legacy migration from `prismcolor:palettes`).

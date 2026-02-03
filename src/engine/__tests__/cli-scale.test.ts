@@ -43,10 +43,10 @@ const buildExpected = (
 }
 
 describe('generate-scale CLI', () => {
-  it('matches the Prism primary scale output', () => {
+  it('matches the Tonal Foundry primary scale output', () => {
     const primary = seedPalette.seed.find((item) => item.semantic === 'primary')
     if (!primary || !primary.keys) {
-      throw new Error('Missing Prism primary seed')
+      throw new Error('Missing Tonal Foundry primary seed')
     }
 
     const cli = runCli([
@@ -66,12 +66,12 @@ describe('generate-scale CLI', () => {
     expect(cli).toEqual(expected)
   })
 
-  it('matches the Prism secondary scale output', () => {
+  it('matches the Tonal Foundry secondary scale output', () => {
     const secondary = seedPalette.seed.find(
       (item) => item.semantic === 'secondary',
     )
     if (!secondary || !secondary.keys) {
-      throw new Error('Missing Prism secondary seed')
+      throw new Error('Missing Tonal Foundry secondary seed')
     }
 
     const cli = runCli([

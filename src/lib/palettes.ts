@@ -9,7 +9,8 @@ export type PaletteRecord = {
   outputSpace?: OutputSpace
 }
 
-const storageKey = 'prismcolor:palettes'
+const storageKey = 'tonalfoundry:palettes'
+const legacyStorageKey = 'prismcolor:palettes'
 
 const defaultOutputSpace: OutputSpace = 'auto'
 
@@ -20,7 +21,7 @@ const normalizePalette = (palette: PaletteRecord): PaletteRecord => ({
 
 export const seedPalette: PaletteRecord = normalizePalette({
   id: 1,
-  name: 'Prism',
+  name: 'Tonal Foundry',
   seed: [
     { index: 1, semantic: 'primary', keys: ['oklch(52.95% 0.1609 244.63)'] },
     {
@@ -47,12 +48,17 @@ export const loadPalettes = (): PaletteRecord[] => {
   if (typeof window === 'undefined') return getDefaultPalettes()
   try {
     const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return getDefaultPalettes()
-    const parsed = JSON.parse(raw) as PaletteRecord[]
+    const fallback = raw ?? window.localStorage.getItem(legacyStorageKey)
+    if (!fallback) return getDefaultPalettes()
+    const parsed = JSON.parse(fallback) as PaletteRecord[]
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return getDefaultPalettes()
     }
-    return parsed.map(normalizePalette)
+    const normalized = parsed.map(normalizePalette)
+    if (!raw) {
+      savePalettes(normalized)
+    }
+    return normalized
   } catch {
     return getDefaultPalettes()
   }

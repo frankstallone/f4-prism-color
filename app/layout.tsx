@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Prism Color',
+  title: 'Tonal Foundry',
   description:
     'Palette lab for building multi-scale color systems, contrast checks, and optimized swatches.',
 }
