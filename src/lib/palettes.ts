@@ -21,7 +21,7 @@ const normalizePalette = (palette: PaletteRecord): PaletteRecord => ({
 
 export const seedPalette: PaletteRecord = normalizePalette({
   id: 1,
-  name: 'Tonal Foundry',
+  name: 'Prism',
   seed: [
     { index: 1, semantic: 'primary', keys: ['oklch(52.95% 0.1609 244.63)'] },
     {
